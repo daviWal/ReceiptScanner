@@ -1,90 +1,21 @@
 import SwiftUI
 import PDFKit
 
-// MARK: - Receipt Model
-
-struct Receipt: Identifiable, Codable {
-    let id: UUID
-    let fileName: String      // e.g. "Receipt_1623456789.pdf"
-    let date: Date
-    let amount: Double
-
-    // Computed URL to the PDF in Documents
-    var fileURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent(fileName)
-    }
-
-    // Thumbnail of the first page
-    var thumbnail: UIImage? {
-        guard let document = PDFDocument(url: fileURL),
-              let page = document.page(at: 0) else {
-            return nil
-        }
-        return page.thumbnail(of: CGSize(width: 60, height: 80), for: .cropBox)
-    }
-
-    // Formatted date/time and amount
-    var formattedDate: String {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        return df.string(from: date)
-    }
-    var formattedTime: String {
-        let tf = DateFormatter()
-        tf.timeStyle = .short
-        return tf.string(from: date)
-    }
-    var formattedAmount: String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .currency
-        return nf.string(from: NSNumber(value: amount)) ?? "\(amount)"
-    }
-}
-
-// MARK: - ReceiptStore
-
-class ReceiptStore: ObservableObject {
-    @Published var receipts: [Receipt] = []
-
-    private let storeURL: URL = {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("receipts.json")
-    }()
-
-    init() {
-        load()
-    }
-
-    func load() {
-        guard let data = try? Data(contentsOf: storeURL) else { return }
-        if let decoded = try? JSONDecoder().decode([Receipt].self, from: data) {
-            receipts = decoded
-        }
-    }
-
-    func save() {
-        if let data = try? JSONEncoder().encode(receipts) {
-            try? data.write(to: storeURL)
-        }
-    }
-
-    func add(_ receipt: Receipt) {
-        receipts.append(receipt)
-        save()
-    }
-}
-
 // MARK: - SavedReceiptsView
 
 struct SavedReceiptsView: View {
-    @StateObject private var store = ReceiptStore()
+    @StateObject private var viewModel: SavedReceiptsViewModel
+
+    init(viewModel: SavedReceiptsViewModel = SavedReceiptsViewModel()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
-        List(store.receipts) { receipt in
+        List(viewModel.receipts) { receipt in
             ReceiptRow(receipt: receipt)
         }
         .listStyle(PlainListStyle())
+        .onAppear { viewModel.loadReceipts() }
         .navigationTitle("Saved Bills")
     }
 }
@@ -132,10 +63,9 @@ struct SavedReceiptsView_Previews: PreviewProvider {
             date: Date(),
             amount: 42.50
         )
-        let store = ReceiptStore()
-        store.receipts = [dummy]
+        let previewVM = SavedReceiptsViewModel(previewReceipts: [dummy])
         return NavigationStack {
-            SavedReceiptsView()
+            SavedReceiptsView(viewModel: previewVM)
         }
     }
 }

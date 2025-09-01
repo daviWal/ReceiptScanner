@@ -44,9 +44,17 @@ struct CameraScannerView: UIViewControllerRepresentable {
 
             if pdfDocument.write(to: fileURL) {
                 print("Saved PDF at \(fileURL)")
-                // TODO: Save metadata (date, time, amount) alongside this URL
-            } else {
-                print("Failed to save PDF")
+
+                // Create a new Receipt model
+                let newReceipt = Receipt(
+                    id: UUID(),
+                    fileName: fileName,
+                    date: Date(),
+                    amount: 0.0 // you could add parsing later
+                )
+
+                // Save into ReceiptStore
+                ReceiptStore.shared.add(newReceipt)
             }
 
             // Dismiss the scanner and go back

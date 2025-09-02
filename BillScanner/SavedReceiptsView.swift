@@ -11,8 +11,17 @@ struct SavedReceiptsView: View {
     }
 
     var body: some View {
-        List(viewModel.receipts) { receipt in
-            ReceiptRow(receipt: receipt)
+        List {
+            ForEach(viewModel.receipts) { receipt in
+                NavigationLink(destination: ReceiptDetailView(viewModel: viewModel, receipt: receipt)) {
+                    ReceiptRow(receipt: receipt)
+                }
+            }
+            .onDelete { indexSet in
+                indexSet.map { viewModel.receipts[$0] }.forEach { receipt in
+                    viewModel.deleteReceipt(receipt)
+                }
+            }
         }
         .listStyle(PlainListStyle())
         .onAppear { viewModel.loadReceipts() }
